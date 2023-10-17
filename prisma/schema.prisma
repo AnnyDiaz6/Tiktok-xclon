@@ -1,0 +1,112 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextIndex"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Necessary for Next auth
+model Account {
+  id                String  @id @default(cuid()) @map("_id")
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? // @db.Text
+  access_token      String? // @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? // @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid()) @map("_id")
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid()) @map("_id")
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  bio           String?
+  video         Video[]
+  likes         Likes[]
+  followers     Follow[]  @relation("followings")
+  followings    Follow[]  @relation("followers")
+  comment       Comment[]
+  checked       Boolean   @default(false)
+
+  @@fulltext([name])
+}
+
+model VerificationToken {
+  id         String   @id @default(cuid()) @map("_id")
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Video {
+  id        String    @id @default(cuid()) @map("_id")
+  title     String
+  videoUrl  String
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  width     Int
+  height    Int
+  thumnail  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt()
+  likes     Likes[]
+  comment   Comment[]
+
+  @@fulltext([title])
+}
+
+model Likes {
+  id String @id @default(cuid()) @map("_id")
+
+  video   Video?  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId String?
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String?
+}
+
+model Follow {
+  id          String @id @default(cuid()) @map("_id")
+  followerId  String
+  followingId String
+  follower    User   @relation("followers", fields: [followerId], references: [id])
+  following   User   @relation("followings", fields: [followingId], references: [id])
+}
+
+model Comment {
+  id        String   @id @default(cuid()) @map("_id")
+  comment   String
+  video     Video    @relation(fields: [videoId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+  videoId   String
+  userId    String
+}
